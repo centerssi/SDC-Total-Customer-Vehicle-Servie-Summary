@@ -1,6 +1,37 @@
 <!DOCTYPE html>
 <!--
-  ระบบวิเคราะห์ยอดลูกค้า-ยอดรถยนต์ · ศูนย์การค้าซีคอนสแควร์ (SeaconSquare) · เวอร์ชัน v120
+  ระบบวิเคราะห์ยอดลูกค้า-ยอดรถยนต์ · ศูนย์การค้าซีคอนสแควร์ (SeaconSquare) · เวอร์ชัน v121
+  v121 — เมนูใหม่ "เปรียบเทียบข้อมูล" (รายวัน/ช่วงวันที่/รายเดือน/รายปี) + แก้บั๊กยอดกลุ่มเสริม 2 จุด
+
+  ■ เมนูใหม่ใน Sidebar: เปรียบเทียบข้อมูล (มีครบทั้งแถบข้างเดสก์ท็อป · bottom nav · เมนูมือถือ)
+   • 4 โหมด: รายวัน · ช่วงวันที่ · รายเดือน · รายปี — เทียบข้ามปีได้ทุกโหมด
+   • ★ แกนกลางมีชุดเดียว: ทุกโหมดถูกแปลงเป็น "ช่วงวัน A เทียบ ช่วงวัน B" แล้วส่งเข้าตัวคำนวณเดียวกัน
+     จึงไม่มีทางที่โหมดหนึ่งคำนวณคนละแบบกับอีกโหมด (เป็นที่มาของความคลาดเคลื่อนที่หาสาเหตุยากที่สุด)
+   • เลือกขอบเขตตัวชี้วัดได้: ทั้งหมด 16 · หลัก 6 · กลุ่มเสริม 10
+   • ทางลัด 5 แบบ: วันล่าสุด vs วันก่อนหน้า · vs วันเดียวกันสัปดาห์ก่อน · 7 วันล่าสุด vs 7 วันก่อนหน้า ·
+     เดือนล่าสุด vs เดือนก่อน · เดือนล่าสุด vs เดือนเดียวกันปีก่อน
+   • % คำนวณจาก "ค่าเฉลี่ยต่อวัน" เสมอ และหารด้วยจำนวน "วันที่มีบันทึกจริง"
+     ★ ถ้าใช้ยอดรวมหรือหารด้วยวันตามปฏิทิน ช่วงที่วันไม่เท่ากัน/บันทึกไม่ครบจะอ่านผิดทันที
+     ★ มีแถบเตือนเมื่อจำนวนวันสองฝั่งไม่เท่ากัน
+
+  ■ [บั๊กเงียบ ชนิดเดียวกัน 2 จุด] อ่านยอดผ่านชื่อฟิลด์ 'total' + ชื่อคีย์ (เช่น totalCustomer)
+    ซึ่ง computeMonthStats สร้างไว้เฉพาะ 6 ตัวชี้วัดหลัก ตัวชี้วัดกลุ่มเสริมทั้ง 10 ตัวจึงได้ 0 เสมอ
+   • หน้าเปรียบเทียบเดิม (การ์ดในหน้ารายเดือน): กลุ่มเสริมแสดง 0 และขึ้นว่า "ลดลง 100%" ทุกครั้ง
+   • พยากรณ์ยอดสิ้นเดือน: ยอดที่บันทึกแล้วของกลุ่มเสริมกลายเป็น 0 ยอดคาดการณ์จึงเหลือแค่ส่วนที่เหลือของเดือน
+     (ตรวจแล้ว เช่น STARBUCK ก.ย. ยอดจริง 20,083 หายทั้งก้อน — หลังแก้ คาดการณ์ได้ 65,525 ตามที่ควรเป็น)
+   • ★ ทั้งสองจุดไม่มีสัญญาณเตือนใดๆ เพราะผลลัพธ์ยัง "ดูเป็นตัวเลขปกติ" → แก้ให้อ่านจาก ms.totals ซึ่งครบทุกตัวชี้วัด
+
+  ■ Edge case / Error handling ที่เพิ่มในหน้าใหม่
+   • ใส่วันที่กลับด้าน (ปลายทางก่อนต้นทาง) → สลับให้เอง แทนที่จะคืนผลว่างเงียบๆ
+   • วันที่ผิดรูปแบบ/นอกช่วงที่มีข้อมูล → แจ้งชัดว่าฝั่งไหนไม่มีข้อมูล พร้อมบอกช่วงวันที่ที่ระบบมี
+   • ช่อง date จำกัด min/max ตามวันแรก-วันสุดท้ายที่มีข้อมูลจริง
+   • โหมดรายปีเก็บค่าเลือกแยก (yearSel) — เดิมถ้าใช้ฟิลด์ร่วมกับโหมดรายเดือน จะกลายเป็นเทียบปีเดียวกันเองแล้วได้ 0% เสมอ
+   • ทางลัดที่ยังไม่มีข้อมูลรองรับ (เช่น ยังไม่มีปีก่อน) → แจ้งเตือนแทนการแสดงผลว่าง
+   • ผูก event แบบ delegation ทั้งหน้า เพราะช่องกรอกถูกสร้างใหม่ทุกครั้งที่เปลี่ยนโหมด
+     ★ ถ้าผูกกับ element ตรงๆ listener จะหลุดทันทีที่ innerHTML ถูกเขียนทับ (หน้าจะ "กดแล้วไม่มีอะไรเกิดขึ้น")
+   • หน้าใหม่วิ่งผ่าน safeRender เหมือนหน้าอื่น — พังแล้วไม่ทำให้ทั้งแอปขาว
+
+  ■ v120 (เดิม)
   v120 — เปลี่ยนแหล่งข้อมูลไปยังไฟล์ Google Sheets และ Web App ชุดใหม่ (โครงสร้างคอลัมน์เหมือนเดิมทุกประการ)
 
    • SHEET_ID ใหม่: 1WMXUUqS1cusyfsX6jwdPPG_m6iF87jh1LbgyRpEnLgI
@@ -3315,6 +3346,10 @@ html.dark .app-sidebar{
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>
         รายเดือน
       </button>
+      <button data-view="compare" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-left">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h7M3 18h7M14 6h7M14 18h7"/><path d="M6.5 6v12M17.5 6v12"/></svg>
+        เปรียบเทียบข้อมูล
+      </button>
       <button data-view="peaks" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-left">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h4v-7H4zM10 20h4V4h-4zM16 20h4v-10h-4z"/><path d="M12 2.2l.9 1.9 1.9.9-1.9.9-.9 1.9-.9-1.9L9.2 5l1.9-.9z" fill="currentColor" stroke="none"/></svg>
         ยอดสูงสุด
@@ -3797,6 +3832,48 @@ html.dark .app-sidebar{
     </section>
 
     <!-- ===== PEAKS VIEW (v81) — ยอดสูงสุดของทุกประเภท เรียงมาก→น้อย ===== -->
+    <!-- ═══ v121: หน้าเปรียบเทียบข้อมูลแบบยืดหยุ่น (รายวัน · ช่วงวันที่ · รายเดือน · รายปี) ═══ -->
+    <section id="view-compare" class="view">
+      <div class="flex items-start justify-between flex-wrap gap-3 mb-1">
+        <div>
+          <h2 class="font-display text-2xl font-bold">เปรียบเทียบข้อมูล</h2>
+          <p class="text-sm mt-1" style="color:var(--ink-soft);">เลือกได้ทั้งรายวัน ช่วงวันที่ รายเดือน และรายปี · เทียบข้ามปีได้ · ครบทั้ง 16 ตัวชี้วัด</p>
+        </div>
+        <div id="compareLabYearSlot"></div>
+      </div>
+
+      <div class="card rounded-2xl p-5 mb-5">
+        <div class="flex flex-wrap items-center gap-2 mb-4">
+          <span class="text-sm font-medium" style="color:var(--ink-soft);">รูปแบบ:</span>
+          <div id="cmpModeChips" class="flex flex-wrap gap-2"></div>
+        </div>
+
+        <div class="grid md:grid-cols-2" style="gap:14px;">
+          <div class="rounded-xl p-4" id="cmpSideABox" style="border:1px solid var(--line);">
+            <p class="text-xs font-semibold mb-2" style="color:var(--gate-a1);">ช่วงที่ 1 (A)</p>
+            <div id="cmpSideA" class="flex flex-wrap items-center gap-2"></div>
+          </div>
+          <div class="rounded-xl p-4" id="cmpSideBBox" style="border:1px solid var(--line);">
+            <p class="text-xs font-semibold mb-2" style="color:var(--gate-b1);">ช่วงที่ 2 (B)</p>
+            <div id="cmpSideB" class="flex flex-wrap items-center gap-2"></div>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2 mt-4">
+          <button id="cmpSwapBtn" type="button" class="text-sm px-3 py-2 rounded-xl card">⇄ สลับ A/B</button>
+          <span class="text-sm font-medium ml-1" style="color:var(--ink-soft);">ทางลัด:</span>
+          <div id="cmpPresets" class="flex flex-wrap gap-2"></div>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2 mt-3">
+          <span class="text-sm font-medium" style="color:var(--ink-soft);">ตัวชี้วัด:</span>
+          <div id="cmpScopeChips" class="flex flex-wrap gap-2"></div>
+        </div>
+      </div>
+
+      <div id="cmpResult"></div>
+    </section>
+
     <section id="view-peaks" class="view">
       <div class="flex flex-wrap items-end justify-between gap-3 mb-5">
         <div style="flex:1 1 14rem;min-width:0;">
@@ -4798,6 +4875,10 @@ const state = {
   currentView: 'overview',
   selectedMonth: null,
   selectedWeek: 0, // 0 = ทั้งเดือน, 1..n = สัปดาห์ที่ n
+  cmpMode: 'month',       // v121: โหมดหน้าเปรียบเทียบ — 'day' | 'range' | 'month' | 'year'
+  cmpScope: 'all',        // ขอบเขตตัวชี้วัดที่แสดงในตารางเปรียบเทียบ
+  cmpSides: null,         // ค่าที่เลือกของฝั่ง A/B (สร้างครั้งแรกใน initCompareLab)
+  cmpReady: false,
   peakScope: 'year',      // v81: 'year' = ปีที่เลือก · 'all' = ตารางเทียบทุกปี
   peakMetric: 'customer', // ประเภทที่กำลังดูในตารางเทียบทุกปี
   allTimeMetric: 'customer', // v95: ประเภทที่เลือกในหน้า "สูงสุดตลอดกาล"
@@ -7039,9 +7120,12 @@ function renderCompare(){
          — ผลต่างของ<b>ยอดรวม</b>จะดูแย่กว่าความจริง แนะนำให้ดูที่<b>ค่าเฉลี่ยต่อวัน</b>แทน
        </div>` : '';
 
-  const totalKey = (k) => 'total' + k.charAt(0).toUpperCase() + k.slice(1);
+  // ★★ v121 แก้บั๊ก: เดิมอ่านยอดผ่านชื่อฟิลด์ 'total' + ชื่อคีย์ (เช่น totalCustomer)
+  //    ซึ่งมีจริงเฉพาะ 6 ตัวชี้วัดหลัก — ตัวชี้วัดกลุ่มเสริมทั้ง 10 ตัวจึงได้ 0 เสมอ
+  //    และแสดงเป็น "ลดลง 100%" ทุกครั้งโดยไม่มีใครสังเกต เพราะตัวเลขดูสมเหตุสมผลในตาราง
+  //    → เปลี่ยนมาอ่านจาก map ที่ครอบคลุมทุกตัวชี้วัด (ms.totals) ซึ่ง computeMonthStats สร้างไว้แล้ว
   const rows = METRIC_KEYS.map(k => {
-    const va = sa[totalKey(k)] || 0, vb = sb[totalKey(k)] || 0;
+    const va = Number((sa.totals || {})[k]) || 0, vb = Number((sb.totals || {})[k]) || 0;
     // ค่าเฉลี่ยต่อวันคิดจาก "วันที่มีบันทึกจริง" เพื่อให้เทียบกันได้แม้ข้อมูลไม่ครบ
     const na = (sa.recorded || sa.daily).length || 1, nb = (sb.recorded || sb.daily).length || 1;
     const aa = va / na, ab = vb / nb;
@@ -7126,6 +7210,346 @@ function renderForecastCard(monthKey){
       คำนวณโดยแยกค่าเฉลี่ย<b>วันธรรมดา</b>กับ<b>วันหยุด</b> แล้วคูณด้วยจำนวนวันแต่ละประเภทที่เหลือจริง
       (นับวันหยุดนักขัตฤกษ์ด้วย) — แม่นกว่าการเอาค่าเฉลี่ยรวมคูณจำนวนวัน · ${esc(conf.note)}
     </p>`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// v121 — หน้า "เปรียบเทียบข้อมูล" แบบยืดหยุ่น
+// ───────────────────────────────────────────────────────────────
+// ★ ของเดิมเทียบได้เฉพาะ "เดือน vs เดือน" จากดรอปดาวน์สองช่อง ซึ่งตอบคำถามจริงไม่ได้หลายแบบ
+//   เช่น "เสาร์ที่จัดงาน เทียบกับเสาร์ปกติ" หรือ "ช่วงโปรโมชัน 10 วัน เทียบกับ 10 วันก่อนหน้า"
+// ★ หน้านี้จึงคิดเป็น "ช่วงวัน (A) เทียบ ช่วงวัน (B)" เป็นแกนกลางเพียงอย่างเดียว
+//   ทุกโหมด (วัน/ช่วง/เดือน/ปี) แค่แปลงเป็นคู่ของช่วงวันแล้วส่งเข้าตัวคำนวณเดียวกัน
+//   → ตรรกะสรุปผลมีชุดเดียว ไม่มีทางที่โหมดหนึ่งคำนวณคนละแบบกับอีกโหมด
+// ★ ทุกค่าที่แสดงคิดจาก "วันที่มีบันทึกจริง" เสมอ ไม่ใช่จำนวนวันตามปฏิทิน
+//   เพราะช่วงที่ยังบันทึกไม่ครบจะทำให้ค่าเฉลี่ยต่ำกว่าจริงทันทีถ้าหารด้วยวันปฏิทิน
+// ═══════════════════════════════════════════════════════════════
+const CMP_MODES = [
+  { id:'day',   label:'รายวัน' },
+  { id:'range', label:'ช่วงวันที่' },
+  { id:'month', label:'รายเดือน' },
+  { id:'year',  label:'รายปี' }
+];
+const CMP_SCOPES = [
+  { id:'all',   label:'ทั้งหมด (16)' },
+  { id:'core',  label:'หลัก 6' },
+  { id:'extra', label:'กลุ่มเสริม 10' }
+];
+
+/** รวมข้อมูลรายวันทุกปีเป็นอาเรย์เดียว (เรียงตามวันที่) — ใช้เป็นฐานของทุกโหมด */
+function allDailyAcrossYears(){
+  const out = [];
+  availableYears().forEach(y => {
+    const bundle = state.years[y] || {};
+    MONTH_KEY_ORDER.forEach(k => {
+      const m = bundle[k];
+      if (m && Array.isArray(m.daily)) out.push(...m.daily);
+    });
+  });
+  return out.sort((a,b)=>a.date.localeCompare(b.date));
+}
+
+/** วันที่มีข้อมูลในช่วง [from,to] (รวมปลายทั้งสองข้าง) — สลับให้เองถ้าใส่กลับด้าน */
+function daysInRange(fromISO, toISO){
+  if (!isValidISO(fromISO) || !isValidISO(toISO)) return [];
+  let a = fromISO, b = toISO;
+  if (a > b){ const t = a; a = b; b = t; }   // ★ ผู้ใช้ใส่กลับด้านได้เสมอ — สลับให้แทนที่จะคืนค่าว่างเงียบๆ
+  return allDailyAcrossYears().filter(d => d.date >= a && d.date <= b);
+}
+
+/** แปลง "ฝั่งหนึ่ง" ของการเปรียบเทียบเป็นชุดวัน + ป้ายชื่อ */
+function resolveCmpSide(mode, side){
+  try {
+    if (mode === 'day'){
+      const d = findDailyByISO(side.date);
+      return { days: d ? [d] : [], label: side.date ? formatThaiDate(side.date) : '—' };
+    }
+    if (mode === 'range'){
+      const days = daysInRange(side.from, side.to);
+      const a = side.from, b = side.to;
+      const lo = (a && b && a > b) ? b : a, hi = (a && b && a > b) ? a : b;
+      return { days, label: (lo && hi) ? `${formatThaiDateShort(lo)} – ${formatThaiDateShort(hi)}` : '—' };
+    }
+    if (mode === 'month'){
+      const bundle = state.years[side.year];
+      const m = bundle && bundle[side.key];
+      return { days: (m && m.daily) ? m.daily.slice() : [], label: m ? `${m.monthName} ${beYear(side.year)}` : '—' };
+    }
+    if (mode === 'year'){
+      const y = side.yearSel;
+      const days = isValidYearCE(y) ? (allDaysOfYear(y) || []) : [];
+      return { days, label: isValidYearCE(y) ? `ปี พ.ศ. ${ceToBe(y)}` : '—' };
+    }
+  } catch(err){
+    console.error('resolveCmpSide:', err);
+  }
+  return { days: [], label: '—' };
+}
+
+/** คำนวณผลเปรียบเทียบของทุกตัวชี้วัด (ยอดรวม · เฉลี่ย/วัน · ผลต่าง · %) */
+function computeComparison(daysA, daysB, keys){
+  const ta = sumMetrics(daysA), tb = sumMetrics(daysB);
+  const na = daysA.length || 0, nb = daysB.length || 0;
+  return keys.map(k => {
+    const va = Number(ta[k]) || 0, vb = Number(tb[k]) || 0;
+    const aa = safeDiv(va, na), ab = safeDiv(vb, nb);
+    // ★ ใช้ค่าเฉลี่ย/วันเป็นฐานของ % เสมอ — ถ้าใช้ยอดรวม ช่วงที่วันไม่เท่ากันจะอ่านผิดทันที
+    //   (เช่น 10 วัน เทียบ 31 วัน ยอดรวมย่อมน้อยกว่าเป็นธรรมดา ไม่ได้แปลว่าแย่ลง)
+    const pct = (ab > 0) ? (aa - ab) / ab * 100 : null;
+    return { key:k, totalA:va, totalB:vb, avgA:aa, avgB:ab, diff:va - vb, diffAvg:aa - ab, pct };
+  });
+}
+
+function cmpScopeKeys(){
+  if (state.cmpScope === 'core')  return CORE_KEYS;
+  if (state.cmpScope === 'extra') return EXTRA_KEYS;
+  return METRIC_KEYS;
+}
+
+/** แถบชิปเลือกโหมด/ขอบเขตตัวชี้วัด */
+function cmpChipsHTML(items, activeId, dataAttr){
+  return items.map(it => `<button type="button" class="week-chip text-sm px-3 py-1.5 rounded-lg card ${it.id===activeId?'active':''}"
+    ${dataAttr}="${it.id}">${esc(it.label)}</button>`).join('');
+}
+
+/** ช่องกรอกของแต่ละฝั่ง — เปลี่ยนตามโหมดที่เลือก */
+function cmpSideInputsHTML(which){
+  const side = state.cmpSides[which];
+  const mode = state.cmpMode;
+  const bounds = cmpDateBounds();
+  const dateInput = (id, val) => `<input type="date" id="${id}" value="${esc(val||'')}"
+      min="${bounds.min}" max="${bounds.max}" class="text-sm px-3 py-2 rounded-xl card">`;
+  if (mode === 'day')  return dateInput(`cmp_${which}_date`, side.date);
+  if (mode === 'range') return dateInput(`cmp_${which}_from`, side.from)
+    + `<span class="text-sm" style="color:var(--ink-soft);">ถึง</span>`
+    + dateInput(`cmp_${which}_to`, side.to);
+  if (mode === 'month'){
+    const opts = allMonthOptions();
+    return `<select id="cmp_${which}_month" class="text-sm px-3 py-2 rounded-xl card">` +
+      opts.map(o => `<option value="${o.year}|${o.key}" ${(o.year===side.year && o.key===side.key)?'selected':''}>${esc(o.label)}</option>`).join('') +
+      `</select>`;
+  }
+  const ys = availableYears();
+  if (!ys.length) return `<span class="text-sm" style="color:var(--ink-soft);">ยังไม่มีปีที่มีข้อมูล</span>`;
+  return `<select id="cmp_${which}_yearSel" class="text-sm px-3 py-2 rounded-xl card">` +
+    ys.map(y => `<option value="${y}" ${y===side.yearSel?'selected':''}>พ.ศ. ${ceToBe(y)}</option>`).join('') + `</select>`;
+}
+
+/** ขอบเขตวันที่ที่เลือกได้ = วันแรก/วันสุดท้ายที่มีข้อมูลจริง (กันเลือกวันที่ไม่มีข้อมูลเลย) */
+function cmpDateBounds(){
+  const all = allDailyAcrossYears();
+  if (!all.length){ const t = toLocalISO(new Date()); return { min:t, max:t }; }
+  return { min: all[0].date, max: all[all.length-1].date };
+}
+
+function renderCompareLab(){
+  if (!state.cmpReady) initCompareLab();
+  const mount = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
+  mount('cmpModeChips',  cmpChipsHTML(CMP_MODES,  state.cmpMode,  'data-cmp-mode'));
+  mount('cmpScopeChips', cmpChipsHTML(CMP_SCOPES, state.cmpScope, 'data-cmp-scope'));
+  mount('cmpSideA', cmpSideInputsHTML('A'));
+  mount('cmpSideB', cmpSideInputsHTML('B'));
+  mount('cmpPresets', CMP_PRESETS.map((p,i) =>
+    `<button type="button" class="text-sm px-3 py-1.5 rounded-lg card" data-cmp-preset="${i}">${esc(p.label)}</button>`).join(''));
+  renderCompareResult();
+}
+
+function renderCompareResult(){
+  const wrap = document.getElementById('cmpResult');
+  if (!wrap) return;
+  const A = resolveCmpSide(state.cmpMode, state.cmpSides.A);
+  const B = resolveCmpSide(state.cmpMode, state.cmpSides.B);
+
+  if (!A.days.length || !B.days.length){
+    // ★ บอกให้ชัดว่า "ฝั่งไหน" ไม่มีข้อมูล ผู้ใช้จะได้รู้ว่าต้องแก้ช่องไหน
+    const miss = [!A.days.length ? 'ช่วงที่ 1 (A)' : null, !B.days.length ? 'ช่วงที่ 2 (B)' : null].filter(Boolean).join(' และ ');
+    wrap.innerHTML = `<div class="card rounded-2xl p-5">
+      <p class="text-sm" style="color:var(--ink-soft);line-height:1.7;">
+        ยังไม่มีข้อมูลใน${miss} — เลือกวันที่หรือช่วงที่มีการบันทึกยอดแล้ว
+        (ข้อมูลในระบบมีตั้งแต่ ${formatThaiDateShort(cmpDateBounds().min)} ถึง ${formatThaiDateShort(cmpDateBounds().max)})
+      </p></div>`;
+    return;
+  }
+
+  const keys = cmpScopeKeys();
+  const rows = computeComparison(A.days, B.days, keys);
+  const lead = rows.find(r => r.key === 'customer') || rows[0];
+  const warn = (A.days.length !== B.days.length)
+    ? `<div class="text-xs px-3 py-2 rounded-lg mb-3" style="background:color-mix(in srgb,var(--warn-ink) 13%,transparent);
+         border:1px solid color-mix(in srgb,var(--warn-ink) 32%,transparent);line-height:1.6;">
+         ⚠ จำนวนวันสองฝั่งไม่เท่ากัน (A ${fmt(A.days.length)} วัน · B ${fmt(B.days.length)} วัน)
+         — <b>ยอดรวม</b>จึงเทียบกันตรงๆ ไม่ได้ ให้ดูที่ <b>เฉลี่ย/วัน</b> และ <b>%</b> ซึ่งคำนวณจากค่าเฉลี่ยแล้ว
+       </div>` : '';
+
+  const headCard = (label, sub, days, val, color) => `
+    <div class="card rounded-xl p-4" style="border-left:4px solid ${color};">
+      <p class="text-xs font-semibold mb-1" style="color:${color};">${esc(label)}</p>
+      <p class="text-sm font-medium mb-1">${esc(sub)}</p>
+      <p class="font-display font-bold" style="font-size:1.4rem;line-height:1.25;">${fmt(val)}
+        <span class="text-xs font-normal" style="color:var(--ink-soft);">${METRIC_COLOR[lead.key].unit}</span></p>
+      <p class="text-xs mt-0.5" style="color:var(--ink-soft);">${fmt(days)} วันที่มีข้อมูล</p>
+    </div>`;
+
+  const pctTxt = (p) => p === null ? '—' : `${p>=0?'▲':'▼'} ${fmt1(Math.abs(p))}%`;
+  const pctColor = (p) => p === null ? 'var(--ink-soft)' : (p>=0 ? 'var(--up)' : 'var(--down)');
+
+  const body = rows.map(r => `
+    <tr class="border-b" style="border-color:var(--line);">
+      <td class="whitespace-nowrap" style="color:${metricInk(r.key)};font-weight:600;">${METRIC_COLOR[r.key].label}</td>
+      <td class="num">${fmt(r.totalA)}</td>
+      <td class="num">${fmt(r.totalB)}</td>
+      <td class="num">${fmt(r.avgA)}</td>
+      <td class="num">${fmt(r.avgB)}</td>
+      <td class="num" style="color:${r.diffAvg>=0?'var(--up)':'var(--down)'};">${r.diffAvg>=0?'+':''}${fmt(r.diffAvg)}</td>
+      <td class="num" style="color:${pctColor(r.pct)};font-weight:700;">${pctTxt(r.pct)}</td>
+    </tr>`).join('');
+
+  wrap.innerHTML = `
+    <div class="grid md:grid-cols-3 mb-5" style="gap:12px;">
+      ${headCard('ช่วงที่ 1 (A)', A.label, A.days.length, sumMetrics(A.days)[lead.key], METRIC_COLOR.customer.a)}
+      ${headCard('ช่วงที่ 2 (B)', B.label, B.days.length, sumMetrics(B.days)[lead.key], METRIC_COLOR.car.a)}
+      <div class="card rounded-xl p-4" style="border-left:4px solid ${pctColor(lead.pct)};">
+        <p class="text-xs font-semibold mb-1" style="color:var(--ink-soft);">ผลต่าง ${esc(METRIC_COLOR[lead.key].label)} (เฉลี่ย/วัน)</p>
+        <p class="font-display font-bold" style="font-size:1.4rem;line-height:1.25;color:${pctColor(lead.pct)};">${pctTxt(lead.pct)}</p>
+        <p class="text-xs mt-0.5" style="color:var(--ink-soft);">${lead.diffAvg>=0?'+':''}${fmt(lead.diffAvg)} ${METRIC_COLOR[lead.key].unit}/วัน</p>
+      </div>
+    </div>
+    ${warn}
+    <div class="card rounded-2xl p-5 overflow-x-auto scrollbar-thin">
+      <h3 class="font-display font-semibold mb-3">ตารางเปรียบเทียบรายตัวชี้วัด</h3>
+      <table class="dash-table roomy headband text-sm">
+        <thead><tr style="border-color:var(--line);">
+          <th>ตัวชี้วัด</th><th>ยอดรวม A</th><th>ยอดรวม B</th>
+          <th>เฉลี่ย/วัน A</th><th>เฉลี่ย/วัน B</th><th>ผลต่างเฉลี่ย</th><th>% เทียบ B</th>
+        </tr></thead>
+        <tbody>${body}</tbody>
+      </table>
+      <p class="text-xs mt-3" style="color:var(--ink-soft);line-height:1.6;">
+        % คำนวณจาก<b>ค่าเฉลี่ยต่อวัน</b>ของ A เทียบ B เสมอ — จึงเทียบได้แม้จำนวนวันสองฝั่งไม่เท่ากัน ·
+        ค่าเฉลี่ยหารด้วย<b>จำนวนวันที่มีบันทึกจริง</b> ไม่ใช่จำนวนวันตามปฏิทิน
+      </p>
+    </div>`;
+}
+
+/** ทางลัดที่ใช้บ่อย — คืนค่า {mode, A, B} */
+const CMP_PRESETS = [
+  { label:'วันล่าสุด vs วันก่อนหน้า', build: () => {
+      const all = allDailyAcrossYears();
+      if (all.length < 2) return null;
+      return { mode:'day', A:{ date: all[all.length-1].date }, B:{ date: all[all.length-2].date } };
+  }},
+  { label:'วันล่าสุด vs วันเดียวกันสัปดาห์ก่อน', build: () => {
+      const all = allDailyAcrossYears();
+      if (!all.length) return null;
+      const last = all[all.length-1].date;
+      const prev = shiftISO(last, -7);
+      return { mode:'day', A:{ date:last }, B:{ date:prev } };
+  }},
+  { label:'7 วันล่าสุด vs 7 วันก่อนหน้า', build: () => {
+      const all = allDailyAcrossYears();
+      if (all.length < 8) return null;
+      const last = all[all.length-1].date;
+      return { mode:'range',
+        A:{ from: shiftISO(last,-6),  to: last },
+        B:{ from: shiftISO(last,-13), to: shiftISO(last,-7) } };
+  }},
+  { label:'เดือนล่าสุด vs เดือนก่อน', build: () => {
+      const opts = allMonthOptions();
+      if (opts.length < 2) return null;
+      const a = opts[opts.length-1], b = opts[opts.length-2];
+      return { mode:'month', A:{ year:a.year, key:a.key }, B:{ year:b.year, key:b.key } };
+  }},
+  { label:'เดือนล่าสุด vs เดือนเดียวกันปีก่อน', build: () => {
+      const opts = allMonthOptions();
+      if (!opts.length) return null;
+      const a = opts[opts.length-1];
+      const b = opts.find(o => o.key === a.key && o.year === a.year - 1);
+      if (!b) return null;   // ยังไม่มีข้อมูลปีก่อน — ผู้เรียกจะแจ้งผู้ใช้เอง
+      return { mode:'month', A:{ year:a.year, key:a.key }, B:{ year:b.year, key:b.key } };
+  }}
+];
+
+/** เลื่อนวันที่แบบ ISO ไปกี่วันก็ได้ (รองรับข้ามเดือน/ข้ามปี/ปีอธิกสุรทิน) */
+function shiftISO(iso, days){
+  const d = new Date(iso + 'T00:00:00');
+  if (isNaN(d.getTime())) return iso;
+  d.setDate(d.getDate() + days);
+  return toLocalISO(d);
+}
+
+function initCompareLab(){
+  const all = allDailyAcrossYears();
+  const opts = allMonthOptions();
+  const lastISO = all.length ? all[all.length-1].date : toLocalISO(new Date());
+  const prevISO = all.length > 1 ? all[all.length-2].date : lastISO;
+  const mA = opts.length ? opts[opts.length-1] : { year: state.year, key: MONTH_KEY_ORDER[0] };
+  const mB = opts.length > 1 ? opts[opts.length-2] : mA;
+  const ys = availableYears();
+  state.cmpMode  = 'month';
+  state.cmpScope = 'all';
+  state.cmpSides = {
+    A: { date:lastISO, from: shiftISO(lastISO,-6), to:lastISO, year:mA.year, key:mA.key },
+    B: { date:prevISO, from: shiftISO(lastISO,-13), to: shiftISO(lastISO,-7), year:mB.year, key:mB.key }
+  };
+  // ★ โหมดรายปีเก็บค่าเลือกแยกใน yearSel — ค่าเริ่มต้นคือปีล่าสุดเทียบปีก่อนหน้า (ถ้ามี)
+  state.cmpSides.A.yearSel = ys.length ? ys[ys.length-1] : state.year;
+  state.cmpSides.B.yearSel = ys.length > 1 ? ys[ys.length-2] : (ys[0] || state.year);
+  state.cmpReady = true;
+  bindCompareLabEvents();
+}
+
+function bindCompareLabEvents(){
+  const root = document.getElementById('view-compare');
+  if (!root || root.dataset.bound) return;
+  root.dataset.bound = '1';
+
+  // ★ ใช้ event delegation ทั้งหน้า เพราะช่องกรอกถูกสร้างใหม่ทุกครั้งที่เปลี่ยนโหมด
+  //   ถ้าผูก listener กับตัว element ตรงๆ จะหลุดทันทีที่ innerHTML ถูกเขียนทับ
+  root.addEventListener('click', (e) => {
+    const t = e.target;
+    if (!t || !t.closest) return;
+    const modeBtn = t.closest('[data-cmp-mode]');
+    if (modeBtn){ state.cmpMode = modeBtn.dataset.cmpMode; renderCompareLab(); return; }
+    const scopeBtn = t.closest('[data-cmp-scope]');
+    if (scopeBtn){ state.cmpScope = scopeBtn.dataset.cmpScope; renderCompareLab(); return; }
+    if (t.closest('#cmpSwapBtn')){
+      const tmp = state.cmpSides.A; state.cmpSides.A = state.cmpSides.B; state.cmpSides.B = tmp;
+      renderCompareLab(); return;
+    }
+    const preset = t.closest('[data-cmp-preset]');
+    if (preset){
+      const p = CMP_PRESETS[Number(preset.dataset.cmpPreset)];
+      if (!p) return;
+      let cfg = null;
+      try { cfg = p.build(); } catch(err){ console.error('preset:', err); }
+      if (!cfg){ showToast('ยังไม่มีข้อมูลพอสำหรับทางลัดนี้ (เช่น ยังไม่มีข้อมูลปีก่อน)', 'info'); return; }
+      state.cmpMode = cfg.mode;
+      state.cmpSides.A = Object.assign({}, state.cmpSides.A, cfg.A);
+      state.cmpSides.B = Object.assign({}, state.cmpSides.B, cfg.B);
+      renderCompareLab();
+    }
+  });
+
+  root.addEventListener('change', (e) => {
+    const id = e.target && e.target.id;
+    if (!id || id.indexOf('cmp_') !== 0) return;
+    const [, which, field] = id.split('_');
+    const side = state.cmpSides[which];
+    if (!side) return;
+    const v = e.target.value;
+    if (field === 'month'){
+      const [y, k] = String(v).split('|');
+      side.year = Number(y); side.key = k;
+    } else if (field === 'yearSel'){
+      const n = Number(v);
+      if (!isValidYearCE(n)){ showToast('ปีที่เลือกไม่ถูกต้อง', 'error'); return; }
+      side.yearSel = n;
+    } else {
+      // ★ ไม่ยอมรับวันที่ที่พิมพ์มาผิดรูป (ผู้ใช้พิมพ์เองได้ในช่อง date บางเบราว์เซอร์)
+      if (v && !isValidISO(v)){ showToast('รูปแบบวันที่ไม่ถูกต้อง', 'error'); return; }
+      side[field] = v;
+    }
+    renderCompareResult();
+  });
 }
 
 function initCompare(){
@@ -7214,7 +7638,11 @@ function forecastMonth(monthKey){
     const useW = (aW === null) ? overall : aW;
     const useE = (aE === null) ? overall : aE;
     if ((remWeekday > 0 && aW === null) || (remWeekend > 0 && aE === null)) confident = false;
-    const already = st['total' + k.charAt(0).toUpperCase() + k.slice(1)] || 0;
+    // ★★ v121 แก้บั๊กชนิดเดียวกับหน้าเปรียบเทียบ: เดิมอ่านยอดที่บันทึกแล้วผ่านชื่อฟิลด์
+    //    'total' + ชื่อคีย์ ซึ่งมีจริงเฉพาะ 6 ตัวชี้วัดหลัก → ตัวชี้วัดกลุ่มเสริมทั้ง 10 ตัว
+    //    ได้ already = 0 ทำให้ "ยอดคาดการณ์สิ้นเดือน" เหลือแค่ส่วนที่คาดการณ์วันที่เหลือ
+    //    (ต่ำกว่าความจริงมหาศาล และไม่มีสัญญาณเตือนใดๆ เพราะตัวเลขยังดูเป็นตัวเลขปกติ)
+    const already = Number((st.totals || {})[k]) || 0;
     const add = useW * remWeekday + useE * remWeekend;
     projected[k] = Math.round(already + add);
     breakdown[k] = { already, add: Math.round(add), avgWeekday: useW, avgWeekend: useE };
@@ -8431,18 +8859,19 @@ function initSync(){
 // นำทาง (Navigation) และการสลับธีม
 // ═══════════════════════════════════════════════════════════════
 const VIEW_LABELS = {
-  overview: 'ภาพรวมทั้งหมด', monthly: 'รายเดือน', peaks: 'ยอดสูงสุด',
+  overview: 'ภาพรวมทั้งหมด', monthly: 'รายเดือน', compare: 'เปรียบเทียบข้อมูล', peaks: 'ยอดสูงสุด',
   events: 'ค้นหางานกิจกรรม',
   entry: 'บันทึกข้อมูลลง Google Sheets', data: 'แก้ไขข้อมูล', report: 'รายงานสรุป (Export)'
 };
 // ป้ายสั้นสำหรับ bottom nav มือถือ (พื้นที่จำกัด — 5 หน้าแล้ว จึงต้องสั้นมาก)
 const BOTTOM_NAV_LABELS = {
-  overview: 'ภาพรวม', monthly: 'รายเดือน', peaks: 'ยอดสูงสุด', events: 'ค้นหางาน',
+  overview: 'ภาพรวม', monthly: 'รายเดือน', compare: 'เทียบข้อมูล', peaks: 'ยอดสูงสุด', events: 'ค้นหางาน',
   entry: 'บันทึก', data: 'แก้ไข', report: 'รายงาน'
 };
 const NAV_ICON_SVGS = {
   overview: '<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>',
   monthly: '<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/>',
+  compare: '<path d="M3 6h7M3 18h7M14 6h7M14 18h7"/><path d="M6.5 6v12M17.5 6v12"/>',
   peaks: '<path d="M4 20h4v-7H4zM10 20h4V4h-4zM16 20h4v-10h-4z"/><path d="M12 2.2l.9 1.9 1.9.9-1.9.9-.9 1.9-.9-1.9L9.2 5l1.9-.9z" fill="currentColor" stroke="none"/>',
   events: '<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/>',
   entry: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/>',
@@ -10052,6 +10481,7 @@ function renderCurrentView(){
   switch(state.currentView){
     case 'overview': safeRender('overview', renderOverview); break;
     case 'monthly':  safeRender('monthly',  renderMonthly);  break;
+    case 'compare':  safeRender('compare',  renderCompareLab); break;
     case 'peaks':    safeRender('peaks',    renderPeaks);    break;
     case 'events':   safeRender('events',   renderEventSearch); break;
     case 'entry':    safeRender('entry',    renderEntryForm); break;
